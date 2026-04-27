@@ -58,5 +58,5 @@ func WriteScenariosScenario(scenario *scenmodel.Scenario, toPath string) error {
 		return err
 	}
 
-	return os.WriteFile(toPath, []byte(jsonString), 0644)
+	return os.WriteFile(toPath, []byte(jsonString), 0600)
 }
