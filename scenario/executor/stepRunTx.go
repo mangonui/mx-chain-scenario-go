@@ -45,8 +45,7 @@ func (ae *ScenarioExecutor) ExecuteTxStep(step *scenmodel.TxStep) (*vmcommon.VMO
 	return output, nil
 }
 
-func (ae *ScenarioExecutor) executeTx(txIndex string, tx *scenmodel.Transaction) (*vmcommon.VMOutput, error) {
-	var err error
+func (ae *ScenarioExecutor) executeTx(txIndex string, tx *scenmodel.Transaction) (output *vmcommon.VMOutput, err error) {
 	gasForExecution := uint64(0)
 
 	ae.World.CreateStateBackup()
@@ -55,12 +54,12 @@ func (ae *ScenarioExecutor) executeTx(txIndex string, tx *scenmodel.Transaction)
 		if err != nil {
 			errRollback := ae.World.RollbackChanges()
 			if errRollback != nil {
-				err = errRollback
+				err = fmt.Errorf("rollback failed: %v (original: %w)", errRollback, err)
 			}
 		} else {
 			errCommit := ae.World.CommitChanges()
 			if errCommit != nil {
-				err = errCommit
+				err = fmt.Errorf("commit failed: %w", errCommit)
 			}
 		}
 	}()
@@ -80,8 +79,6 @@ func (ae *ScenarioExecutor) executeTx(txIndex string, tx *scenmodel.Transaction)
 	}
 
 	// we also use fake vm outputs for transactions that don't use the VM, just for convenience
-	var output *vmcommon.VMOutput
-
 	if !ae.senderHasEnoughBalance(tx) {
 		// out of funds is handled by the protocol, so it needs to be mocked here
 		output = outOfFundsResult()
@@ -131,9 +128,9 @@ func (ae *ScenarioExecutor) executeTx(txIndex string, tx *scenmodel.Transaction)
 	}
 
 	if output.ReturnCode == vmcommon.Ok {
-		updateErr := ae.updateStateAfterTx(tx, output)
-		if updateErr != nil {
-			return nil, updateErr
+		err = ae.updateStateAfterTx(tx, output)
+		if err != nil {
+			return nil, err
 		}
 	} else {
 		err = fmt.Errorf(
