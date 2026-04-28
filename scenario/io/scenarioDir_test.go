@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
 
 	fr "github.com/multiversx/mx-chain-scenario-go/scenario/expression/fileresolver"
@@ -106,4 +107,20 @@ func TestWriteScenariosScenarioUsesOwnerOnlyPermissions(t *testing.T) {
 	info, err := os.Stat(outputPath)
 	require.NoError(t, err)
 	require.Equal(t, os.FileMode(0600), info.Mode().Perm())
+
+	dirInfo, err := os.Stat(filepath.Dir(outputPath))
+	require.NoError(t, err)
+	require.Equal(t, os.FileMode(0), dirInfo.Mode().Perm()&0007)
+}
+
+func TestParseScenariosScenarioRejectsOversizedFile(t *testing.T) {
+	tempDir := t.TempDir()
+	scenPath := filepath.Join(tempDir, "oversized.scen.json")
+	oversized := strings.Repeat(" ", int(maxScenarioFileSizeBytes)+1)
+	err := os.WriteFile(scenPath, []byte(oversized), 0600)
+	require.NoError(t, err)
+
+	_, err = ParseScenariosScenarioDefaultParser(scenPath)
+	require.Error(t, err)
+	require.ErrorContains(t, err, "exceeds maximum size")
 }
