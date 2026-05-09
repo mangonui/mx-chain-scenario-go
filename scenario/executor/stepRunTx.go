@@ -45,38 +45,44 @@ func (ae *ScenarioExecutor) ExecuteTxStep(step *scenmodel.TxStep) (*vmcommon.VMO
 	return output, nil
 }
 
-func (ae *ScenarioExecutor) executeTx(txIndex string, tx *scenmodel.Transaction) (output *vmcommon.VMOutput, err error) {
+func (ae *ScenarioExecutor) executeTx(txIndex string, tx *scenmodel.Transaction) (*vmcommon.VMOutput, error) {
+	var err error
 	gasForExecution := uint64(0)
 
-	ae.World.CreateStateBackup()
-
-	defer func() {
-		if err != nil {
-			errRollback := ae.World.RollbackChanges()
-			if errRollback != nil {
-				err = fmt.Errorf("rollback failed: %v (original: %w)", errRollback, err)
-			}
-		} else {
-			errCommit := ae.World.CommitChanges()
-			if errCommit != nil {
-				err = fmt.Errorf("commit failed: %w", errCommit)
-			}
-		}
-	}()
-
-	// Apply pre-execution state updates inside the rollback boundary.
+	// Charge gas / bump nonce outside the rollback boundary: the protocol
+	// applies these unconditionally, so they must survive a failed VM call.
 	if tx.Type.HasSender() {
 		beforeErr := ae.World.UpdateWorldStateBefore(
 			tx.From.Value,
 			tx.GasLimit.Value,
 			tx.GasPrice.Value)
 		if beforeErr != nil {
-			err = fmt.Errorf("could not set up tx %s: %w", txIndex, beforeErr)
-			return nil, err
+			return nil, fmt.Errorf("could not set up tx %s: %w", txIndex, beforeErr)
 		}
 
 		gasForExecution = tx.GasLimit.Value
 	}
+
+	ae.World.CreateStateBackup()
+
+	defer func() {
+		// `err` is a local in-flight signal: when set, the function rolls back
+		// post-snapshot state changes. The function still returns (output, nil)
+		// so that callers (ExecuteTxStep) can compare output against the
+		// scenario's ExpectedResult instead of treating a non-Ok return code
+		// as a fatal error.
+		if err != nil {
+			if errRollback := ae.World.RollbackChanges(); errRollback != nil {
+				err = errRollback
+			}
+		} else {
+			if errCommit := ae.World.CommitChanges(); errCommit != nil {
+				err = errCommit
+			}
+		}
+	}()
+
+	var output *vmcommon.VMOutput
 
 	// we also use fake vm outputs for transactions that don't use the VM, just for convenience
 	if !ae.senderHasEnoughBalance(tx) {
@@ -133,12 +139,15 @@ func (ae *ScenarioExecutor) executeTx(txIndex string, tx *scenmodel.Transaction)
 			return nil, err
 		}
 	} else {
+		// Signal the deferred rollback that state mutations from this VM call
+		// must be reverted. `err` is consumed by the defer and intentionally
+		// not propagated to the caller — see the defer comment above.
 		err = fmt.Errorf(
 			"tx step failed: retcode=%d, msg=%s",
 			output.ReturnCode, output.ReturnMessage)
 	}
 
-	return output, err
+	return output, nil
 }
 
 func (ae *ScenarioExecutor) senderHasEnoughBalance(tx *scenmodel.Transaction) bool {
