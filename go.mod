@@ -20,7 +20,6 @@ require (
 	github.com/denisbrodbeck/machineid v1.0.1 // indirect
 	github.com/gogo/protobuf v1.3.2 // indirect
 	github.com/golang/protobuf v1.5.3 // indirect
-	github.com/kr/text v0.2.0 // indirect
 	github.com/mitchellh/mapstructure v1.5.0 // indirect
 	github.com/mr-tron/base58 v1.2.0 // indirect
 	github.com/pelletier/go-toml v1.9.3 // indirect
@@ -36,4 +35,6 @@ replace github.com/multiversx/mx-chain-core-go => github.com/mangonui/mx-chain-c
 
 replace github.com/multiversx/mx-chain-logger-go => github.com/mangonui/mx-chain-logger-go v0.0.0-20260512025801-4b00900c17b0
 
-replace github.com/multiversx/mx-chain-vm-common-go => github.com/mangonui/mx-chain-vm-common-go v0.0.0-20260512030017-389a7968d8e1
+replace github.com/multiversx/mx-chain-vm-common-go => github.com/mangonui/mx-chain-vm-common-go v0.0.0-20260512042020-b605c960cbd0
+
+replace github.com/multiversx/mx-components-big-int => github.com/mangonui/mx-components-big-int v0.0.0-20260507133911-536f4799b94f
