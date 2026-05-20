@@ -176,6 +176,9 @@ func (b *MockWorld) QueryDRWANativeGovernance(queryType uint32, key []byte) ([]b
 // IsAuthorizedDRWASyncCaller returns whether the provided address is currently
 // authorized to emit DRWA sync writes.
 func (b *MockWorld) IsAuthorizedDRWASyncCaller(callerAddress []byte) bool {
+	if _, ok := b.AuthorizedDRWASyncCallers[string(callerAddress)]; ok {
+		return true
+	}
 	if b.ProvidedBlockchainHook != nil {
 		return b.ProvidedBlockchainHook.IsAuthorizedDRWASyncCaller(callerAddress)
 	}
